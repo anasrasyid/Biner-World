@@ -1,6 +1,4 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Player : MonoBehaviour
 {
@@ -11,7 +9,8 @@ public class Player : MonoBehaviour
     private float jumpPower;
     #endregion
     private float horizontal;
-    private bool canMove;
+    private float aSpeed;
+    private bool accelarate;
 
     private Rigidbody2D rigidbody2;
     private SpriteRenderer spriteRenderer;
@@ -20,13 +19,18 @@ public class Player : MonoBehaviour
     private Vector2 start, end;
     private Animator anim;
 
+    public GameManager gameManager;
+
     void Start()
     {
         rigidbody2 = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
         ground = null;
-        canMove = false;
+        accelarate = false;
+        aSpeed = speed;
         anim = gameObject.GetComponent<Animator>();
+        gameManager = GameObject.Find("GamaManager").GetComponent<GameManager>();
+        gameManager.addingEssential();
     }
 
     void Update()
@@ -36,24 +40,32 @@ public class Player : MonoBehaviour
         Movement();
     }
 
+    private void FixedUpdate()
+    {
+        if (accelarate && speed < 10)
+        {
+            speed += Time.deltaTime;
+        }
+    }
+
     public void Directional(float direct)
     {
-        canMove = true;
         horizontal = direct;
-        anim.SetBool("canMove", canMove);
+        anim.SetBool("canMove", true);
+        accelarate = true;
     }
 
     public void StopMovement()
     {
-        canMove = false;
         horizontal = 0;
-        rigidbody2.velocity = new Vector2(transform.right.x * horizontal * speed, rigidbody2.velocity.y);
-        anim.SetBool("canMove", canMove);
+        //rigidbody2.velocity = new Vector2(0, rigidbody2.velocity.y);
+        anim.SetBool("canMove", false);
+        accelarate = false;
+        speed = aSpeed;
     }
 
     public void Movement()
     {
-        if (!canMove) return;
         if (horizontal > 0)
         {
             spriteRenderer.flipX = false;
@@ -61,6 +73,7 @@ public class Player : MonoBehaviour
         {
             spriteRenderer.flipX = true;
         }
+        //transform.Translate(new Vector2(transform.right.x * horizontal * speed * Time.deltaTime, 0));
         rigidbody2.velocity = new Vector2(transform.right.x * horizontal * speed, rigidbody2.velocity.y);
     }
 
@@ -74,18 +87,56 @@ public class Player : MonoBehaviour
 
     private void OnCollisionStay2D(Collision2D collision)
     {
-        if(collision.gameObject.CompareTag("Ground"))
+        if(collision.gameObject.CompareTag("Ground") && ground == null)
         {
             ground = collision;
+            anim.SetBool("isGround", true);
         }
     }
-
 
     private void OnCollisionExit2D(Collision2D collision)
     {
         if(collision.gameObject.CompareTag("Ground"))
         {
             ground = null;
+            anim.SetBool("isGround", false);
+        }
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Traps"))
+        {
+            gameManager.DelHealth();
+        }
+        if (collision.gameObject.CompareTag("Box"))
+        {
+            BoxBin x = collision.gameObject.GetComponent<BoxBin>();
+            int k = 1;
+            if (x.value == 0)
+            {
+                k = -1;
+            }
+            gameManager.Check(k * x.values + gameManager.key);
+        }
+        else if (collision.gameObject.CompareTag("BoxInt"))
+        {
+            BoxInt x = collision.gameObject.GetComponent<BoxInt>();
+            if (x.operat == '+')
+            {
+                gameManager.Check(x.value + gameManager.key);
+            }else if (x.operat == '-')
+            {
+                gameManager.Check(-x.value + gameManager.key);
+            }else if (x.operat == '*')
+            {
+                gameManager.Check(x.value * gameManager.key);
+            }
+            else if (x.operat == ':')
+            {
+                gameManager.Check(x.value / gameManager.key);
+            }
+            
         }
     }
 }
